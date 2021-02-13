@@ -25,7 +25,8 @@ z_slow = 4*N2
 T1 = ts*N1 # chirp interval
 mu = B/T1
 
-# given n2/N2 in slow axis, n1/N1 in fast axis
+#%% total time of n2 in slow time, constant r * v
+# for each n1 in fast time and each n2 in slow time
 s = np.zeros((N2, N1), dtype=np.complex64)
 for n2 in range(N2):
     for n1 in range(N1):
@@ -67,16 +68,37 @@ ax.imshow(rd_abs/np.max(rd_abs),
           aspect='auto',
           origin='lower')
 
-# given n1/N1 in fast time, but update r & v for each T1 chirp
-t_list = ts*np.linspace(0, N2*3-1, N2*3)
-# t_list = ts*np.linspace(0, N2-1, N2)
+# for each n2 in slow time, but all n1 in fast time once
+t_list_chirp = ts * np.linspace(0, N1-1, N1)
+for n2 in range(N2):
+    tau = 2*(r0 + v0*T1*n2 + v0*t_list_chirp) / c0
+    s[n2, :] = np.exp(
+        1j* 2* np.pi * (
+            f0*tau + mu*tau*t_list_chirp - 0.5*mu*(tau**2)
+            )
+        )
+rp = np.fft.fft(s*win_r, n=z_fast, axis=1)
+rp_abs = np.abs(rp)
+rd = np.fft.fft(rp*win_d, n=z_slow, axis=0)
+rd_abs = np.abs(rd)
+
+fig, ax = plt.subplots(figsize=(6,6))
+ax.imshow(rd_abs/np.max(rd_abs), 
+          cmap=plt.cm.Reds, 
+          interpolation='none', 
+          extent=[r_vec[0], r_vec[-1], v_vec[0], v_vec[-1]],
+          aspect='auto',
+          origin='lower')
+#%% total time over multiple N2, r & v changing
+# for each n1 in fast time and each i_T1 in slow time
+t_list = ts*np.linspace(0, N2*4-1, N2*4)
 
 v = np.zeros(t_list.shape)
 r = np.zeros(t_list.shape)
 
 s1 = np.zeros((t_list.shape[0], N1), dtype=np.complex64)
 for i_T1 in range(t_list.shape[0]):
-    
+    # one r & one v for each T1 chirp
     v[i_T1] = v0 + 0.01*T1*i_T1
     r[i_T1] = r0 + v[i_T1]*T1*i_T1
     
@@ -101,7 +123,7 @@ rp1_abs = np.abs(rp1)
 #           aspect='auto',
 #           origin='lower')
 
-rd1 = np.fft.fft(rp1[0*128:1*128,:]*win_d, n=z_slow, axis=0)
+rd1 = np.fft.fft(rp1[0*N2:1*N2,:]*win_d, n=z_slow, axis=0)
 rd1_abs = np.abs(rd1)
 
 fig, ax = plt.subplots(figsize=(6,6))
@@ -112,7 +134,31 @@ ax.imshow(rd1_abs/np.max(rd1_abs),
           aspect='auto',
           origin='lower')
 
-rd1 = np.fft.fft(rp1[int(0.5*128):int(1.5*128),:]*win_d, n=z_slow, axis=0)
+# rd1 = np.fft.fft(rp1[int(0.5*N2):int(1.5*N2),:]*win_d, n=z_slow, axis=0)
+# rd1_abs = np.abs(rd1)
+
+# fig, ax = plt.subplots(figsize=(6,6))
+# ax.imshow(rd1_abs/np.max(rd1_abs), 
+#           cmap=plt.cm.Reds, 
+#           interpolation='none', 
+#           extent=[r_vec[0], r_vec[-1], v_vec[0], v_vec[-1]],
+#           aspect='auto',
+#           origin='lower')
+
+# for each i_T1 in slow time, but all n1 in fast time once
+for i_T1 in range(t_list.shape[0]):
+    # one r & one v for each T1 chirp
+    v[i_T1] = v0 + 0.01*T1*i_T1
+    r[i_T1] = r0 + v[i_T1]*T1*i_T1
+    
+    tau = 2*(r[i_T1] + v[i_T1]*t_list_chirp) / c0
+    s[n2, :] = np.exp(
+        1j* 2* np.pi * (
+            f0*tau + mu*tau*t_list_chirp - 0.5*mu*(tau**2)
+            )
+        )
+
+rd1 = np.fft.fft(rp1[0*N2:1*N2,:]*win_d, n=z_slow, axis=0)
 rd1_abs = np.abs(rd1)
 
 fig, ax = plt.subplots(figsize=(6,6))
@@ -123,33 +169,34 @@ ax.imshow(rd1_abs/np.max(rd1_abs),
           aspect='auto',
           origin='lower')
 
-rd1 = np.fft.fft(rp1[int(1*128):int(2*128),:]*win_d, n=z_slow, axis=0)
-rd1_abs = np.abs(rd1)
+#%% each time step over a full N2, r & v constant
+t_list = ts*np.linspace(0, N2-1, N2)
+
+t_list_now = np.zeros((N2, N1))
+tau_now = np.zeros((N2,N1))
+
+v = np.zeros(t_list.shape)
+r = np.zeros(t_list.shape)
+
+s2 = np.zeros((t_list.shape[0], N1), dtype=np.complex64)
+for i_T1 in range(t_list.shape[0]):
+    tau = 2*(r0 + v0* T1*i_T1 + t_list) / c0
+    s2[i_T1, :] = np.exp(
+        1j* 2* np.pi * (
+            f0*tau + mu*tau*t_list - 0.5*mu*(tau**2)
+            )
+        )
+
+win_r = np.hanning(N1)
+win_r = np.tile(win_r, (t_list.shape[0],1))
+rp2 = np.fft.fft(s2*win_r, n=z_fast, axis=1)
+rp2_abs = np.abs(rp2)
+
+rd2 = np.fft.fft(rp2[0*N2:1*N2,:]*win_d, n=z_slow, axis=0)
+rd2_abs = np.abs(rd2)
 
 fig, ax = plt.subplots(figsize=(6,6))
-ax.imshow(rd1_abs/np.max(rd1_abs), 
-          cmap=plt.cm.Reds, 
-          interpolation='none', 
-          extent=[r_vec[0], r_vec[-1], v_vec[0], v_vec[-1]],
-          aspect='auto',
-          origin='lower')
-
-rd1 = np.fft.fft(rp1[int(1.5*128):int(2.5*128),:]*win_d, n=z_slow, axis=0)
-rd1_abs = np.abs(rd1)
-
-fig, ax = plt.subplots(figsize=(6,6))
-ax.imshow(rd1_abs/np.max(rd1_abs), 
-          cmap=plt.cm.Reds, 
-          interpolation='none', 
-          extent=[r_vec[0], r_vec[-1], v_vec[0], v_vec[-1]],
-          aspect='auto',
-          origin='lower')
-
-rd1 = np.fft.fft(rp1[int(2*128):int(3*128),:]*win_d, n=z_slow, axis=0)
-rd1_abs = np.abs(rd1)
-
-fig, ax = plt.subplots(figsize=(6,6))
-ax.imshow(rd1_abs/np.max(rd1_abs), 
+ax.imshow(rd2_abs/np.max(rd2_abs), 
           cmap=plt.cm.Reds, 
           interpolation='none', 
           extent=[r_vec[0], r_vec[-1], v_vec[0], v_vec[-1]],
