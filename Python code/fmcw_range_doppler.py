@@ -89,6 +89,7 @@ ax.imshow(rd_abs/np.max(rd_abs),
           extent=[r_vec[0], r_vec[-1], v_vec[0], v_vec[-1]],
           aspect='auto',
           origin='lower')
+
 #%% total time over multiple N2, r & v changing
 # for each n1 in fast time and each i_T1 in slow time
 t_list = ts*np.linspace(0, N2*4-1, N2*4)
@@ -163,40 +164,6 @@ rd1_abs = np.abs(rd1)
 
 fig, ax = plt.subplots(figsize=(6,6))
 ax.imshow(rd1_abs/np.max(rd1_abs), 
-          cmap=plt.cm.Reds, 
-          interpolation='none', 
-          extent=[r_vec[0], r_vec[-1], v_vec[0], v_vec[-1]],
-          aspect='auto',
-          origin='lower')
-
-#%% each time step over a full N2, r & v constant
-t_list = ts*np.linspace(0, N2-1, N2)
-
-t_list_now = np.zeros((N2, N1))
-tau_now = np.zeros((N2,N1))
-
-v = np.zeros(t_list.shape)
-r = np.zeros(t_list.shape)
-
-s2 = np.zeros((t_list.shape[0], N1), dtype=np.complex64)
-for i_T1 in range(t_list.shape[0]):
-    tau = 2*(r0 + v0* T1*i_T1 + t_list) / c0
-    s2[i_T1, :] = np.exp(
-        1j* 2* np.pi * (
-            f0*tau + mu*tau*t_list - 0.5*mu*(tau**2)
-            )
-        )
-
-win_r = np.hanning(N1)
-win_r = np.tile(win_r, (t_list.shape[0],1))
-rp2 = np.fft.fft(s2*win_r, n=z_fast, axis=1)
-rp2_abs = np.abs(rp2)
-
-rd2 = np.fft.fft(rp2[0*N2:1*N2,:]*win_d, n=z_slow, axis=0)
-rd2_abs = np.abs(rd2)
-
-fig, ax = plt.subplots(figsize=(6,6))
-ax.imshow(rd2_abs/np.max(rd2_abs), 
           cmap=plt.cm.Reds, 
           interpolation='none', 
           extent=[r_vec[0], r_vec[-1], v_vec[0], v_vec[-1]],
